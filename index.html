@@ -140,7 +140,7 @@
       background: var(--cp-surface-soft);
     }
     .status.inprogress { border-color: var(--cp-warning); color: var(--cp-warning); }
-    .status.done { border-color: var(--cp-success); color: var(--cp-success); }
+    .status.complete { border-color: var(--cp-success); color: var(--cp-success); }
     .status.new { color: var(--cp-text-muted); }
     .mono { font-family: Consolas, "Courier New", Courier, monospace; font-size: 0.82rem; }
     .actions { display: flex; gap: 6px; }
@@ -264,7 +264,7 @@
             <option value="all">All</option>
             <option value="New">New</option>
             <option value="In Progress">In Progress</option>
-            <option value="Done">Done</option>
+            <option value="Complete">Complete</option>
           </select>
         </div>
         <div style="min-width: 180px;">
@@ -280,7 +280,7 @@
       <div class="kpis">
         <div class="kpi"><div class="v" id="kAll">0</div><div class="l">Total Tasks</div></div>
         <div class="kpi"><div class="v" id="kActive">0</div><div class="l">In Progress</div></div>
-        <div class="kpi"><div class="v" id="kDone">0</div><div class="l">Done</div></div>
+        <div class="kpi"><div class="v" id="kDone">0</div><div class="l">Complete</div></div>
         <div class="kpi"><div class="v" id="kOverdue">0</div><div class="l">Overdue Open</div></div>
       </div>
 
@@ -317,7 +317,7 @@
     const MASTER_HANDLE_DB = "taskMasterHandleDB";
     const MASTER_HANDLE_STORE = "handles";
     const MASTER_HANDLE_KEY = "masterTrackerFileHandle";
-    const STATUS_VALUES = ["New", "In Progress", "Done"];
+    const STATUS_VALUES = ["New", "In Progress", "Complete"];
     const COUNTRY_VALUES = ["Canada", "USA", "Global"];
     const FREQUENCY_VALUES = ["Weekly", "Monthly", "Annually"];
     const TYPE_VALUES = [
@@ -365,6 +365,7 @@
       task.site = (task.site || "").trim();
       task.type = TYPE_VALUES.includes(task.type) ? task.type : "Other";
       task.createdDate = toISODateOnly(task.createdDate);
+      if (task.status === "Done") task.status = "Complete";
       task.status = STATUS_VALUES.includes(task.status) ? task.status : "New";
       task.title = task.title || "";
       task.priority = ["High", "Low"].includes(task.priority) ? task.priority : "Low";
@@ -462,12 +463,12 @@
 
     function statusClass(status) {
       if (status === "In Progress") return "inprogress";
-      if (status === "Done") return "done";
+      if (status === "Complete") return "complete";
       return "new";
     }
 
     function isOverdue(task) {
-      if (!task.dueDate || task.status === "Done") return false;
+      if (!task.dueDate || task.status === "Complete") return false;
       return task.dueDate < nowISODateOnly();
     }
 
@@ -775,7 +776,7 @@
 
       document.getElementById("kAll").textContent = String(items.length);
       document.getElementById("kActive").textContent = String(items.filter((x) => x.status === "In Progress").length);
-      document.getElementById("kDone").textContent = String(items.filter((x) => x.status === "Done").length);
+      document.getElementById("kDone").textContent = String(items.filter((x) => x.status === "Complete").length);
       document.getElementById("kOverdue").textContent = String(items.filter(isOverdue).length);
 
       const body = document.getElementById("rows");
@@ -876,7 +877,7 @@
         task.status = "In Progress";
         task.lastActionDate = nowISODateOnly();
       } else if (act === "complete") {
-        task.status = "Done";
+        task.status = "Complete";
         task.lastActionDate = nowISODateOnly();
         maybeCreateNextRecurringTask(task, "Recurring task next occurrence added");
       }
@@ -895,7 +896,7 @@
       if (!STATUS_VALUES.includes(value)) return;
       task.status = value;
       task.lastActionDate = nowISODateOnly();
-      if (value === "Done") {
+      if (value === "Complete") {
         maybeCreateNextRecurringTask(task, "Recurring task next occurrence added");
       }
       save();

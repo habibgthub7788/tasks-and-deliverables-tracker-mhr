@@ -668,6 +668,17 @@
       }
     }
 
+    async function syncWithMasterTracker() {
+      normalizeAllItems();
+      if (masterFileHandle) {
+        queueSyncEvent("Manual full sync requested");
+        renderSyncHint();
+        await syncMasterTracker("Manual full sync requested");
+        return;
+      }
+      await connectMasterFile();
+    }
+
     function queueAndAttemptSync(reason) {
       queueSyncEvent(reason);
       renderSyncHint();
@@ -905,7 +916,7 @@
       render();
     });
 
-    document.getElementById("connectMasterBtn").addEventListener("click", connectMasterFile);
+    document.getElementById("connectMasterBtn").addEventListener("click", syncWithMasterTracker);
     save();
     updateRecurringInputs();
     render();

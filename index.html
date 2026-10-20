@@ -131,6 +131,16 @@
       white-space: nowrap;
     }
     th { color: var(--cp-text-muted); font-weight: 600; font-size: 0.82rem; }
+    .sort-btn {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .sort-btn:hover { text-decoration: underline; }
     .status {
       display: inline-block;
       border: 1px solid var(--cp-border);
@@ -246,9 +256,11 @@
         <button id="addBtn" class="btn-primary">Add Task</button>
         <button id="clearBtn">Clear Draft Inputs</button>
         <button id="exportBtn">Export Tasks</button>
+        <button id="exportAllBtn">Export All Tasks (Archive)</button>
         <button id="connectMasterBtn">Sync with Master Tracker</button>
       </div>
       <div class="hint">Export outputs an Excel file with all task fields and history.</div>
+      <div class="hint">All task entries are retained for long-term reference. No automatic record deletion is performed.</div>
       <div id="syncHint" class="hint"></div>
     </div>
 
@@ -287,22 +299,7 @@
       <div class="full">
         <table>
           <thead>
-            <tr>
-              <th>ID</th>
-              <th>Country</th>
-              <th>Site</th>
-              <th>Type</th>
-              <th>Created Date</th>
-              <th>Due Date</th>
-              <th>Priority</th>
-              <th>Recurring</th>
-              <th>Frequency</th>
-              <th>Status</th>
-              <th>Start or Completion Date</th>
-              <th>Task deliverables</th>
-              <th>Remarks</th>
-              <th>Actions</th>
-            </tr>
+            <tr id="headerRow"></tr>
           </thead>
           <tbody id="rows"></tbody>
         </table>
@@ -318,6 +315,22 @@
     const MASTER_HANDLE_DB = "taskMasterHandleDB";
     const MASTER_HANDLE_STORE = "handles";
     const MASTER_HANDLE_KEY = "masterTrackerFileHandle";
+    const COLUMN_DEFS = [
+      { label: "ID", key: "id", type: "number" },
+      { label: "Country", key: "country", type: "text" },
+      { label: "Site", key: "site", type: "text" },
+      { label: "Type", key: "type", type: "text" },
+      { label: "Created Date", key: "createdDate", type: "date" },
+      { label: "Due Date", key: "dueDate", type: "date" },
+      { label: "Priority", key: "priority", type: "text" },
+      { label: "Recurring", key: "recurring", type: "boolean" },
+      { label: "Frequency", key: "frequency", type: "text" },
+      { label: "Status", key: "status", type: "text" },
+      { label: "Start or Completion Date", key: "lastActionDate", type: "date" },
+      { label: "Task deliverables", key: "title", type: "text" },
+      { label: "Remarks", key: "remarks", type: "text" },
+      { label: "Actions", key: null }
+    ];
     const STATUS_VALUES = ["New", "In Progress", "Complete"];
     const COUNTRY_VALUES = ["Canada", "USA", "Global"];
     const FREQUENCY_VALUES = ["Weekly", "Monthly", "Annually"];
@@ -473,17 +486,27 @@
       return task.dueDate < nowISODateOnly();
     }
 
-    function exportTasks() {
+    function downloadExcelFile(filename) {
       const html = buildExcelHtml();
       const blob = new Blob(["\uFEFF", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "tasks-and-deliverables-master-tracker-mhr.xls";
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    }
+
+    function exportTasks() {
+      downloadExcelFile("tasks-and-deliverables-master-tracker-mhr.xls");
+    }
+
+    function exportAllTasksArchive() {
+      const d = new Date();
+      const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}-${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}${String(d.getSeconds()).padStart(2, "0")}`;
+      downloadExcelFile(`tasks-and-deliverables-master-tracker-mhr-all-${stamp}.xls`);
     }
 
     function buildExcelHtml() {
@@ -517,6 +540,7 @@
     let masterFileHandle = null;
     let syncInProgress = false;
     let queuedSyncReason = "";
+    let sortState = { key: null, direction: "asc" };
 
     function openHandleDB() {
       return new Promise((resolve, reject) => {
@@ -759,6 +783,55 @@
       queueAndAttemptSync(reason || "Recurring task auto-added");
     }
 
+    function compareByType(a, b, type, key) {
+      if (type === "number") {
+        return (Number(a[key]) || 0) - (Number(b[key]) || 0);
+      }
+      if (type === "date") {
+        const av = toISODateOnly(a[key]) || "";
+        const bv = toISODateOnly(b[key]) || "";
+        return av.localeCompare(bv);
+      }
+      if (type === "boolean") {
+        const av = a[key] ? 1 : 0;
+        const bv = b[key] ? 1 : 0;
+        return av - bv;
+      }
+      const av = String(a[key] || "").toLowerCase();
+      const bv = String(b[key] || "").toLowerCase();
+      return av.localeCompare(bv);
+    }
+
+    function sortItems(records) {
+      if (!sortState.key) return records;
+      const column = COLUMN_DEFS.find((x) => x.key === sortState.key);
+      if (!column) return records;
+      const factor = sortState.direction === "asc" ? 1 : -1;
+      return [...records].sort((a, b) => factor * compareByType(a, b, column.type, column.key));
+    }
+
+    function renderHeaders() {
+      const row = document.getElementById("headerRow");
+      if (!row) return;
+      row.innerHTML = COLUMN_DEFS.map((col) => {
+        if (!col.key) return `<th>${esc(col.label)}</th>`;
+        const isActive = sortState.key === col.key;
+        const arrow = isActive ? (sortState.direction === "asc" ? " ▲" : " ▼") : "";
+        return `<th><button class="sort-btn" data-sort="${esc(col.key)}">${esc(col.label)}${arrow}</button></th>`;
+      }).join("");
+    }
+
+    function toggleSort(key) {
+      if (!key) return;
+      if (sortState.key === key) {
+        sortState.direction = sortState.direction === "asc" ? "desc" : "asc";
+      } else {
+        sortState.key = key;
+        sortState.direction = "asc";
+      }
+      render();
+    }
+
     async function initMasterSync() {
       try {
         masterFileHandle = await loadMasterHandle();
@@ -785,14 +858,16 @@
         const matchesPriority = filterPriority === "all" || t.priority === filterPriority;
         return matchesSearch && matchesStatus && matchesPriority;
       });
+      const sorted = sortItems(filtered);
 
       document.getElementById("kAll").textContent = String(items.length);
       document.getElementById("kActive").textContent = String(items.filter((x) => x.status === "In Progress").length);
       document.getElementById("kDone").textContent = String(items.filter((x) => x.status === "Complete").length);
       document.getElementById("kOverdue").textContent = String(items.filter(isOverdue).length);
+      renderHeaders();
 
       const body = document.getElementById("rows");
-      body.innerHTML = filtered.map((t) => `
+      body.innerHTML = sorted.map((t) => `
         <tr>
           <td class="mono">${esc(t.id)}</td>
           <td>${esc(t.country)}</td>
@@ -872,10 +947,16 @@
 
     document.getElementById("clearBtn").addEventListener("click", clearInputs);
     document.getElementById("exportBtn").addEventListener("click", exportTasks);
+    document.getElementById("exportAllBtn").addEventListener("click", exportAllTasksArchive);
     document.getElementById("recurring").addEventListener("change", updateRecurringInputs);
     document.getElementById("search").addEventListener("input", render);
     document.getElementById("filterStatus").addEventListener("change", render);
     document.getElementById("filterPriority").addEventListener("change", render);
+    document.getElementById("headerRow").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-sort]");
+      if (!btn) return;
+      toggleSort(btn.getAttribute("data-sort"));
+    });
 
     document.getElementById("rows").addEventListener("click", (e) => {
       const btn = e.target.closest("button");

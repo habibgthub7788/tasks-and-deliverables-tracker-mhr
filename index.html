@@ -171,20 +171,24 @@
   <div class="wrap">
     <div class="panel">
       <h1>Tasks and Deliverables Tracker MHR</h1>
-      <p class="sub">Simplified centralized tracker aligned to your Azure DevOps query pattern.</p>
+      <p class="sub">Simplified centralized activities tracker for MHR</p>
 
       <div class="grid grid-2">
         <div>
-          <label for="title">Title</label>
+          <label for="title">Task deliverables</label>
           <input id="title" placeholder="e.g., AQS setup validation for site YQB06">
-        </div>
-        <div>
-          <label for="deliverable">Deliverable</label>
-          <input id="deliverable" placeholder="e.g., Completed validation report">
         </div>
       </div>
 
       <div class="grid grid-4" style="margin-top: 8px;">
+        <div>
+          <label for="country">Country</label>
+          <select id="country">
+            <option selected>Canada</option>
+            <option>USA</option>
+            <option>Global</option>
+          </select>
+        </div>
         <div>
           <label for="type">Type</label>
           <select id="type">
@@ -210,7 +214,6 @@
           <label for="priority">Priority</label>
           <select id="priority">
             <option>High</option>
-            <option selected>Medium</option>
             <option>Low</option>
           </select>
         </div>
@@ -233,7 +236,7 @@
     <div class="panel" style="margin-top: 12px;">
       <div class="row">
         <div style="min-width: 220px; flex: 1;">
-          <label for="search">Search (title / deliverable / type / remarks)</label>
+          <label for="search">Search (task deliverables / type / remarks)</label>
           <input id="search" placeholder="Search tasks...">
         </div>
         <div style="min-width: 180px;">
@@ -250,7 +253,6 @@
           <select id="filterPriority">
             <option value="all">All</option>
             <option value="High">High</option>
-            <option value="Medium">Medium</option>
             <option value="Low">Low</option>
           </select>
         </div>
@@ -268,14 +270,14 @@
           <thead>
             <tr>
               <th>ID</th>
+              <th>Country</th>
               <th>Type</th>
               <th>Created Date</th>
               <th>Due Date</th>
               <th>Priority</th>
               <th>Status</th>
               <th>Start or Completion Date</th>
-              <th>Title</th>
-              <th>Deliverable</th>
+              <th>Task deliverables</th>
               <th>Remarks</th>
               <th>Actions</th>
             </tr>
@@ -294,6 +296,7 @@
     const MASTER_HANDLE_STORE = "handles";
     const MASTER_HANDLE_KEY = "masterTrackerFileHandle";
     const STATUS_VALUES = ["New", "In Progress", "Done"];
+    const COUNTRY_VALUES = ["Canada", "USA", "Global"];
     const TYPE_VALUES = [
       "Environment", "AQS", "Enablon", "Enablon and AQS", "Compliance Regulatory",
       "Waste", "Water", "Spill response", "Training Env", "Procedure/ SOW",
@@ -335,12 +338,12 @@
     function sanitizeTask(raw) {
       const task = Object.assign({}, raw || {});
       task.id = Number(task.id) || 0;
+      task.country = COUNTRY_VALUES.includes(task.country) ? task.country : "Canada";
       task.type = TYPE_VALUES.includes(task.type) ? task.type : "Other";
       task.createdDate = toISODateOnly(task.createdDate);
       task.status = STATUS_VALUES.includes(task.status) ? task.status : "New";
       task.title = task.title || "";
-      task.priority = task.priority || "Medium";
-      task.deliverable = task.deliverable || "";
+      task.priority = ["High", "Low"].includes(task.priority) ? task.priority : "Low";
       task.dueDate = toISODateOnly(task.dueDate);
       task.remarks = (task.remarks || "").trim() || "NA";
       task.lastActionDate = toISODateOnly(task.lastActionDate);
@@ -386,24 +389,24 @@
       items = [
         {
           id: 1001,
+          country: "Canada",
           type: "AQS",
           createdDate: "2026-07-02",
           status: "New",
           title: "AQS | Bug/Issues/Feedback | Unable to change date in AQS",
-          priority: "Medium",
-          deliverable: "Issue triage and root-cause note",
+          priority: "Low",
           dueDate: "",
           remarks: "NA",
           lastActionDate: ""
         },
         {
           id: 1002,
+          country: "Canada",
           type: "Enablon and AQS",
           createdDate: "2026-10-12",
           status: "In Progress",
           title: "Compliance & AQS | Site Onboarding CYS17-22",
           priority: "High",
-          deliverable: "Onboarding checklist completion",
           dueDate: "2026-10-20",
           remarks: "NA",
           lastActionDate: "2026-10-13"
@@ -449,13 +452,14 @@
     function buildExcelHtml() {
       normalizeAllItems();
       const headers = [
-        "ID", "Type", "Created Date", "Due Date", "Priority",
-        "Status", "Start or Completion Date", "Title", "Deliverable", "Remarks"
+        "ID", "Country", "Type", "Created Date", "Due Date", "Priority",
+        "Status", "Start or Completion Date", "Task deliverables", "Remarks"
       ];
       const headHtml = `<tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>`;
       const bodyHtml = items.map((t) => `
         <tr>
           <td>${esc(t.id)}</td>
+          <td>${esc(t.country)}</td>
           <td>${esc(t.type)}</td>
           <td>${esc(fmtDateDDMMYYYY(t.createdDate))}</td>
           <td>${esc(fmtDateDDMMYYYY(t.dueDate))}</td>
@@ -463,7 +467,6 @@
           <td>${esc(t.status)}</td>
           <td>${esc(fmtDateDDMMYYYY(t.lastActionDate))}</td>
           <td>${esc(t.title)}</td>
-          <td>${esc(t.deliverable)}</td>
           <td>${esc(t.remarks)}</td>
         </tr>
       `).join("");
@@ -651,7 +654,7 @@
       const filterPriority = document.getElementById("filterPriority").value;
 
       const filtered = items.filter((t) => {
-        const text = [t.title, t.deliverable, t.type, t.remarks].join(" ").toLowerCase();
+        const text = [t.title, t.type, t.remarks].join(" ").toLowerCase();
         const matchesSearch = !search || text.includes(search);
         const matchesStatus = filterStatus === "all" || t.status === filterStatus;
         const matchesPriority = filterPriority === "all" || t.priority === filterPriority;
@@ -667,6 +670,7 @@
       body.innerHTML = filtered.map((t) => `
         <tr>
           <td class="mono">${esc(t.id)}</td>
+          <td>${esc(t.country)}</td>
           <td>${esc(t.type)}</td>
           <td>${esc(fmtDateDDMMYYYY(t.createdDate))}</td>
           <td>${esc(fmtDateDDMMYYYY(t.dueDate))}</td>
@@ -678,7 +682,6 @@
           </td>
           <td>${esc(fmtDateDDMMYYYY(t.lastActionDate))}</td>
           <td class="title-cell">${esc(t.title)}</td>
-          <td>${esc(t.deliverable)}</td>
           <td>${esc(t.remarks)}</td>
           <td>
             <div class="actions">
@@ -692,16 +695,16 @@
 
     function clearInputs() {
       document.getElementById("title").value = "";
-      document.getElementById("deliverable").value = "";
+      document.getElementById("country").value = "Canada";
       document.getElementById("type").value = "AQS";
-      document.getElementById("priority").value = "Medium";
+      document.getElementById("priority").value = "High";
       document.getElementById("dueDate").value = "";
       document.getElementById("remarks").value = "";
     }
 
     document.getElementById("addBtn").addEventListener("click", () => {
       const title = document.getElementById("title").value.trim();
-      const deliverable = document.getElementById("deliverable").value.trim();
+      const country = document.getElementById("country").value;
       const type = document.getElementById("type").value;
       const priority = document.getElementById("priority").value;
       const dueDate = toISODateOnly(document.getElementById("dueDate").value);
@@ -710,12 +713,12 @@
 
       items.unshift(sanitizeTask({
         id: nextId(),
+        country,
         type,
         createdDate: nowISODateOnly(),
         status: "New",
         title,
         priority,
-        deliverable,
         dueDate,
         remarks,
         lastActionDate: ""

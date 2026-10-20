@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks and Deliverables Tracker MHR</title>
+  <script>
+    (() => {
+      const param = new URLSearchParams(window.location.search).get("scoutTheme");
+      const theme =
+        param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --cp-bg: #f7f4ef;
+      --cp-bg-elevated: #fcfbf8;
+      --cp-surface: #ffffff;
+      --cp-surface-soft: #f5f5f5;
+      --cp-border: #dedede;
+      --cp-border-strong: #919191;
+      --cp-text: #242424;
+      --cp-text-muted: #5c5c5c;
+      --cp-text-soft: #6f6f6f;
+      --cp-accent: #b11f4b;
+      --cp-accent-hover: #9a1a41;
+      --cp-accent-soft: rgba(177, 31, 75, 0.08);
+      --cp-accent-fg: #ffffff;
+      --cp-success: #16a34a;
+      --cp-danger: #dc2626;
+      --cp-warning: #f59e0b;
+      --cp-link: #0078d4;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+      --cp-overlay: rgba(255, 255, 255, 0.8);
+      --cp-panel: rgba(255, 255, 255, 0.86);
+      --cp-panel-strong: rgba(255, 255, 255, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.55);
+      --cp-highlight: rgba(177, 31, 75, 0.12);
+      --cp-shadow-soft: 0 0 2px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.14);
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --cp-bg: #3d3b3a;
+      --cp-bg-elevated: #343231;
+      --cp-surface: #292929;
+      --cp-surface-soft: #2e2e2e;
+      --cp-border: #474747;
+      --cp-border-strong: #5f5f5f;
+      --cp-text: #dedede;
+      --cp-text-muted: #919191;
+      --cp-text-soft: #b0b0b0;
+      --cp-accent: #fd8ea1;
+      --cp-accent-hover: #fb7b91;
+      --cp-accent-soft: rgba(253, 142, 161, 0.14);
+      --cp-accent-fg: #1a1a1a;
+      --cp-success: #4ade80;
+      --cp-danger: #f87171;
+      --cp-warning: #fbbf24;
+      --cp-link: #4da6ff;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+      --cp-overlay: rgba(41, 41, 41, 0.88);
+      --cp-panel: rgba(41, 41, 41, 0.72);
+      --cp-panel-strong: rgba(41, 41, 41, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.04);
+      --cp-highlight: rgba(253, 142, 161, 0.12);
+      --cp-shadow-soft: 0 0 2px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.36);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--cp-bg);
+      color: var(--cp-text);
+    }
+    .wrap { max-width: 1480px; margin: 0 auto; padding: 20px; }
+    .panel {
+      background: var(--cp-surface);
+      border: 1px solid var(--cp-border);
+      border-radius: 16px;
+      box-shadow: var(--cp-shadow-soft);
+      padding: 16px;
+    }
+    h1 { margin: 0 0 4px; font-size: 1.4rem; }
+    .sub { color: var(--cp-text-muted); margin: 0 0 12px; }
+    .grid { display: grid; gap: 12px; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    label { display: block; font-size: 0.82rem; color: var(--cp-text-muted); margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface);
+      color: var(--cp-text);
+      font: inherit;
+    }
+    button {
+      border: 1px solid var(--cp-border);
+      border-radius: 0.625rem;
+      background: var(--cp-surface-soft);
+      color: var(--cp-text);
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--cp-accent);
+      border-color: var(--cp-accent);
+      color: var(--cp-accent-fg);
+    }
+    .btn-primary:hover { background: var(--cp-accent-hover); }
+    .row { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+    .kpis { margin-top: 12px; display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .kpi {
+      border: 1px solid var(--cp-border);
+      background: var(--cp-surface);
+      border-radius: 0.625rem;
+      padding: 10px;
+    }
+    .kpi .v { font-weight: 700; font-size: 1.1rem; }
+    .kpi .l { color: var(--cp-text-muted); font-size: 0.82rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid var(--cp-border);
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    th { color: var(--cp-text-muted); font-weight: 600; font-size: 0.82rem; }
+    .status {
+      display: inline-block;
+      border: 1px solid var(--cp-border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.78rem;
+      background: var(--cp-surface-soft);
+    }
+    .status.inprogress { border-color: var(--cp-warning); color: var(--cp-warning); }
+    .status.done { border-color: var(--cp-success); color: var(--cp-success); }
+    .status.new { color: var(--cp-text-muted); }
+    .mono { font-family: Consolas, "Courier New", Courier, monospace; font-size: 0.82rem; }
+    .actions { display: flex; gap: 6px; }
+    .full { width: 100%; overflow: auto; }
+    .status-select {
+      min-width: 130px;
+      width: auto;
+      padding: 3px 8px;
+      font-size: 0.8rem;
+      border-radius: 999px;
+    }
+    .title-cell {
+      white-space: normal;
+      min-width: 280px;
+      max-width: 420px;
+    }
+    .hint {
+      margin-top: 8px;
+      color: var(--cp-text-muted);
+      font-size: 0.8rem;
+    }
+    @media (max-width: 1100px) {
+      .grid-2, .grid-4, .kpis { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>Tasks and Deliverables Tracker MHR</h1>
+      <p class="sub">Simplified centralized tracker aligned to your Azure DevOps query pattern.</p>
+
+      <div class="grid grid-2">
+        <div>
+          <label for="title">Title</label>
+          <input id="title" placeholder="e.g., AQS setup validation for site YQB06">
+        </div>
+        <div>
+          <label for="deliverable">Deliverable</label>
+          <input id="deliverable" placeholder="e.g., Completed validation report">
+        </div>
+      </div>
+
+      <div class="grid grid-4" style="margin-top: 8px;">
+        <div>
+          <label for="type">Type</label>
+          <select id="type">
+            <option>Environment</option>
+            <option selected>AQS</option>
+            <option>Enablon</option>
+            <option>Enablon and AQS</option>
+            <option>Compliance Regulatory</option>
+            <option>Waste</option>
+            <option>Water</option>
+            <option>Spill response</option>
+            <option>Training Env</option>
+            <option>Procedure/ SOW</option>
+            <option>Sustainability</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="dueDate">Due Date</label>
+          <input id="dueDate" type="date">
+        </div>
+        <div>
+          <label for="priority">Priority</label>
+          <select id="priority">
+            <option>High</option>
+            <option selected>Medium</option>
+            <option>Low</option>
+          </select>
+        </div>
+        <div>
+          <label for="remarks">Remarks</label>
+          <input id="remarks" placeholder="Optional. Default is NA">
+        </div>
+      </div>
+
+      <div class="row" style="margin-top: 10px;">
+        <button id="addBtn" class="btn-primary">Add Task</button>
+        <button id="clearBtn">Clear Draft Inputs</button>
+        <button id="exportBtn">Export Tasks</button>
+        <button id="connectMasterBtn">Connect Master Tracker File</button>
+      </div>
+      <div class="hint">Export outputs an Excel file with all task fields and history.</div>
+      <div id="syncHint" class="hint"></div>
+    </div>
+
+    <div class="panel" style="margin-top: 12px;">
+      <div class="row">
+        <div style="min-width: 220px; flex: 1;">
+          <label for="search">Search (title / deliverable / type / remarks)</label>
+          <input id="search" placeholder="Search tasks...">
+        </div>
+        <div style="min-width: 180px;">
+          <label for="filterStatus">Status</label>
+          <select id="filterStatus">
+            <option value="all">All</option>
+            <option value="New">New</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Done">Done</option>
+          </select>
+        </div>
+        <div style="min-width: 180px;">
+          <label for="filterPriority">Priority</label>
+          <select id="filterPriority">
+            <option value="all">All</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="v" id="kAll">0</div><div class="l">Total Tasks</div></div>
+        <div class="kpi"><div class="v" id="kActive">0</div><div class="l">In Progress</div></div>
+        <div class="kpi"><div class="v" id="kDone">0</div><div class="l">Done</div></div>
+        <div class="kpi"><div class="v" id="kOverdue">0</div><div class="l">Overdue Open</div></div>
+      </div>
+
+      <div class="full">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Created Date</th>
+              <th>Due Date</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Start or Completion Date</th>
+              <th>Title</th>
+              <th>Deliverable</th>
+              <th>Remarks</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const KEY = "simpleTaskTrackerDraft_v2";
+    const PENDING_SYNC_KEY = "taskMasterPendingSync_v1";
+    const SYNC_META_KEY = "taskMasterSyncMeta_v1";
+    const MASTER_HANDLE_DB = "taskMasterHandleDB";
+    const MASTER_HANDLE_STORE = "handles";
+    const MASTER_HANDLE_KEY = "masterTrackerFileHandle";
+    const STATUS_VALUES = ["New", "In Progress", "Done"];
+    const TYPE_VALUES = [
+      "Environment", "AQS", "Enablon", "Enablon and AQS", "Compliance Regulatory",
+      "Waste", "Water", "Spill response", "Training Env", "Procedure/ SOW",
+      "Sustainability", "Other"
+    ];
+
+    function toISODateOnly(v) {
+      if (!v) return "";
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return "";
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
+    function fmtDateDDMMYYYY(v) {
+      const iso = toISODateOnly(v);
+      if (!iso) return "";
+      const [y, m, d] = iso.split("-");
+      return `${d}-${m}-${y}`;
+    }
+
+    function nowISODateOnly() {
+      return toISODateOnly(new Date().toISOString());
+    }
+
+    function esc(s) {
+      return String(s || "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[ch]));
+    }
+
+    function sanitizeTask(raw) {
+      const task = Object.assign({}, raw || {});
+      task.id = Number(task.id) || 0;
+      task.type = TYPE_VALUES.includes(task.type) ? task.type : "Other";
+      task.createdDate = toISODateOnly(task.createdDate);
+      task.status = STATUS_VALUES.includes(task.status) ? task.status : "New";
+      task.title = task.title || "";
+      task.priority = task.priority || "Medium";
+      task.deliverable = task.deliverable || "";
+      task.dueDate = toISODateOnly(task.dueDate);
+      task.remarks = (task.remarks || "").trim() || "NA";
+      task.lastActionDate = toISODateOnly(task.lastActionDate);
+      return task;
+    }
+
+    function readPendingSync() {
+      const raw = JSON.parse(localStorage.getItem(PENDING_SYNC_KEY) || "null");
+      return Array.isArray(raw) ? raw : [];
+    }
+
+    function writePendingSync(events) {
+      localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(events));
+    }
+
+    function readSyncMeta() {
+      const raw = JSON.parse(localStorage.getItem(SYNC_META_KEY) || "null");
+      if (!raw || typeof raw !== "object") return {};
+      return raw;
+    }
+
+    function writeSyncMeta(meta) {
+      localStorage.setItem(SYNC_META_KEY, JSON.stringify(meta || {}));
+    }
+
+    function queueSyncEvent(reason) {
+      const events = readPendingSync();
+      events.push({ at: new Date().toISOString(), reason: reason || "Task change" });
+      writePendingSync(events);
+    }
+
+    function clearSyncQueue() {
+      writePendingSync([]);
+    }
+
+    let items = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (!Array.isArray(items)) {
+      items = [
+        {
+          id: 1001,
+          type: "AQS",
+          createdDate: "2026-07-02",
+          status: "New",
+          title: "AQS | Bug/Issues/Feedback | Unable to change date in AQS",
+          priority: "Medium",
+          deliverable: "Issue triage and root-cause note",
+          dueDate: "",
+          remarks: "NA",
+          lastActionDate: ""
+        },
+        {
+          id: 1002,
+          type: "Enablon and AQS",
+          createdDate: "2026-10-12",
+          status: "In Progress",
+          title: "Compliance & AQS | Site Onboarding CYS17-22",
+          priority: "High",
+          deliverable: "Onboarding checklist completion",
+          dueDate: "2026-10-20",
+          remarks: "NA",
+          lastActionDate: "2026-10-13"
+        }
+      ];
+    } else {
+      items = items.map(sanitizeTask);
+    }
+
+    function save() {
+      localStorage.setItem(KEY, JSON.stringify(items.map(sanitizeTask)));
+    }
+
+    function nextId() {
+      const max = items.reduce((m, x) => Math.max(m, Number(x.id) || 0), 1000);
+      return max + 1;
+    }
+
+    function statusClass(status) {
+      if (status === "In Progress") return "inprogress";
+      if (status === "Done") return "done";
+      return "new";
+    }
+
+    function isOverdue(task) {
+      if (!task.dueDate || task.status === "Done") return false;
+      return task.dueDate < nowISODateOnly();
+    }
+
+    function exportTasks() {
+      const html = buildExcelHtml();
+      const blob = new Blob(["\uFEFF", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "tasks-and-deliverables-master-tracker-mhr.xls";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function buildExcelHtml() {
+      const headers = [
+        "ID", "Type", "Created Date", "Due Date", "Priority",
+        "Status", "Start or Completion Date", "Title", "Deliverable", "Remarks"
+      ];
+      const headHtml = `<tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>`;
+      const bodyHtml = items.map((t) => `
+        <tr>
+          <td>${esc(t.id)}</td>
+          <td>${esc(t.type)}</td>
+          <td>${esc(fmtDateDDMMYYYY(t.createdDate))}</td>
+          <td>${esc(fmtDateDDMMYYYY(t.dueDate))}</td>
+          <td>${esc(t.priority)}</td>
+          <td>${esc(t.status)}</td>
+          <td>${esc(fmtDateDDMMYYYY(t.lastActionDate))}</td>
+          <td>${esc(t.title)}</td>
+          <td>${esc(t.deliverable)}</td>
+          <td>${esc(t.remarks)}</td>
+        </tr>
+      `).join("");
+
+      return `<!doctype html><html><head><meta charset="UTF-8"></head><body><table border="1"><thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table></body></html>`;
+    }
+
+    let masterFileHandle = null;
+    let syncInProgress = false;
+
+    function openHandleDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(MASTER_HANDLE_DB, 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(MASTER_HANDLE_STORE)) {
+            db.createObjectStore(MASTER_HANDLE_STORE);
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveMasterHandle(handle) {
+      const db = await openHandleDB();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(MASTER_HANDLE_STORE, "readwrite");
+        tx.objectStore(MASTER_HANDLE_STORE).put(handle, MASTER_HANDLE_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    }
+
+    async function loadMasterHandle() {
+      const db = await openHandleDB();
+      const handle = await new Promise((resolve, reject) => {
+        const tx = db.transaction(MASTER_HANDLE_STORE, "readonly");
+        const req = tx.objectStore(MASTER_HANDLE_STORE).get(MASTER_HANDLE_KEY);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+      db.close();
+      return handle;
+    }
+
+    async function hasWriteAccess(handle) {
+      if (!handle) return false;
+      const opts = { mode: "readwrite" };
+      let status = await handle.queryPermission(opts);
+      if (status === "granted") return true;
+      status = await handle.requestPermission(opts);
+      return status === "granted";
+    }
+
+    function setSyncMetaPatch(patch) {
+      const current = readSyncMeta();
+      writeSyncMeta(Object.assign({}, current, patch));
+    }
+
+    function fmtDateTimeLocal(value) {
+      if (!value) return "";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "";
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return `${day}-${m}-${y} ${hh}:${mm}`;
+    }
+
+    function renderSyncHint() {
+      const el = document.getElementById("syncHint");
+      if (!el) return;
+      const pending = readPendingSync().length;
+      const meta = readSyncMeta();
+      const lastOk = meta.lastSuccessAt ? fmtDateTimeLocal(meta.lastSuccessAt) : "Never";
+      const lastErr = meta.lastError || "";
+      const connected = !!masterFileHandle;
+      let text = connected
+        ? `Master file connected. Pending sync items: ${pending}. Last successful sync: ${lastOk}.`
+        : `Master file not connected. Pending sync items: ${pending}. Click "Connect Master Tracker File" to enable auto-sync.`;
+      if (lastErr) text += ` Last sync issue: ${lastErr}`;
+      el.textContent = text;
+    }
+
+    async function syncMasterTracker(reason) {
+      if (syncInProgress) return;
+      if (!masterFileHandle) {
+        renderSyncHint();
+        return;
+      }
+      syncInProgress = true;
+      try {
+        const granted = await hasWriteAccess(masterFileHandle);
+        if (!granted) {
+          setSyncMetaPatch({ lastError: "Write permission not granted." });
+          renderSyncHint();
+          return;
+        }
+        const writable = await masterFileHandle.createWritable();
+        await writable.write(new Blob(["\uFEFF", buildExcelHtml()], { type: "application/vnd.ms-excel;charset=utf-8;" }));
+        await writable.close();
+        clearSyncQueue();
+        setSyncMetaPatch({ lastSuccessAt: new Date().toISOString(), lastError: "", lastReason: reason || "Task update" });
+      } catch (err) {
+        const message = err && err.message ? err.message : String(err);
+        setSyncMetaPatch({ lastError: message });
+      } finally {
+        syncInProgress = false;
+        renderSyncHint();
+      }
+    }
+
+    async function connectMasterFile() {
+      if (!window.showOpenFilePicker) {
+        setSyncMetaPatch({ lastError: "This browser does not support file-link sync." });
+        renderSyncHint();
+        return;
+      }
+      try {
+        const handles = await window.showOpenFilePicker({
+          multiple: false,
+          suggestedName: "tasks-and-deliverables-master-tracker-mhr.xls",
+          types: [{
+            description: "Excel-compatible files",
+            accept: {
+              "application/vnd.ms-excel": [".xls", ".xlsx"],
+              "application/octet-stream": [".xls", ".xlsx"]
+            }
+          }]
+        });
+        masterFileHandle = handles && handles[0] ? handles[0] : null;
+        if (!masterFileHandle) return;
+        await saveMasterHandle(masterFileHandle);
+        queueSyncEvent("Master file connected");
+        renderSyncHint();
+        await syncMasterTracker("Master file connected");
+      } catch (err) {
+        if (err && err.name === "AbortError") {
+          renderSyncHint();
+          return;
+        }
+        const message = err && err.message ? err.message : String(err);
+        setSyncMetaPatch({ lastError: message });
+        renderSyncHint();
+      }
+    }
+
+    function queueAndAttemptSync(reason) {
+      queueSyncEvent(reason);
+      renderSyncHint();
+      syncMasterTracker(reason);
+    }
+
+    async function initMasterSync() {
+      try {
+        masterFileHandle = await loadMasterHandle();
+      } catch (err) {
+        const message = err && err.message ? err.message : String(err);
+        setSyncMetaPatch({ lastError: message });
+      }
+      renderSyncHint();
+      const hasPending = readPendingSync().length > 0;
+      if (masterFileHandle && hasPending) {
+        await syncMasterTracker("App startup pending sync");
+      }
+    }
+
+    function render() {
+      const search = document.getElementById("search").value.trim().toLowerCase();
+      const filterStatus = document.getElementById("filterStatus").value;
+      const filterPriority = document.getElementById("filterPriority").value;
+
+      const filtered = items.filter((t) => {
+        const text = [t.title, t.deliverable, t.type, t.remarks].join(" ").toLowerCase();
+        const matchesSearch = !search || text.includes(search);
+        const matchesStatus = filterStatus === "all" || t.status === filterStatus;
+        const matchesPriority = filterPriority === "all" || t.priority === filterPriority;
+        return matchesSearch && matchesStatus && matchesPriority;
+      });
+
+      document.getElementById("kAll").textContent = String(items.length);
+      document.getElementById("kActive").textContent = String(items.filter((x) => x.status === "In Progress").length);
+      document.getElementById("kDone").textContent = String(items.filter((x) => x.status === "Done").length);
+      document.getElementById("kOverdue").textContent = String(items.filter(isOverdue).length);
+
+      const body = document.getElementById("rows");
+      body.innerHTML = filtered.map((t) => `
+        <tr>
+          <td class="mono">${esc(t.id)}</td>
+          <td>${esc(t.type)}</td>
+          <td>${esc(fmtDateDDMMYYYY(t.createdDate))}</td>
+          <td>${esc(fmtDateDDMMYYYY(t.dueDate))}</td>
+          <td>${esc(t.priority)}</td>
+          <td>
+            <select class="status-select status ${statusClass(t.status)}" data-act="status-change" data-id="${esc(t.id)}">
+              ${STATUS_VALUES.map((s) => `<option value="${esc(s)}" ${s === t.status ? "selected" : ""}>${esc(s)}</option>`).join("")}
+            </select>
+          </td>
+          <td>${esc(fmtDateDDMMYYYY(t.lastActionDate))}</td>
+          <td class="title-cell">${esc(t.title)}</td>
+          <td>${esc(t.deliverable)}</td>
+          <td>${esc(t.remarks)}</td>
+          <td>
+            <div class="actions">
+              <button data-act="start" data-id="${esc(t.id)}">Start</button>
+              <button data-act="complete" data-id="${esc(t.id)}">Complete</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function clearInputs() {
+      document.getElementById("title").value = "";
+      document.getElementById("deliverable").value = "";
+      document.getElementById("type").value = "AQS";
+      document.getElementById("priority").value = "Medium";
+      document.getElementById("dueDate").value = "";
+      document.getElementById("remarks").value = "";
+    }
+
+    document.getElementById("addBtn").addEventListener("click", () => {
+      const title = document.getElementById("title").value.trim();
+      const deliverable = document.getElementById("deliverable").value.trim();
+      const type = document.getElementById("type").value;
+      const priority = document.getElementById("priority").value;
+      const dueDate = toISODateOnly(document.getElementById("dueDate").value);
+      const remarks = document.getElementById("remarks").value.trim() || "NA";
+      if (!title) return;
+
+      items.unshift(sanitizeTask({
+        id: nextId(),
+        type,
+        createdDate: nowISODateOnly(),
+        status: "New",
+        title,
+        priority,
+        deliverable,
+        dueDate,
+        remarks,
+        lastActionDate: ""
+      }));
+      save();
+      queueAndAttemptSync("Task added");
+      clearInputs();
+      render();
+    });
+
+    document.getElementById("clearBtn").addEventListener("click", clearInputs);
+    document.getElementById("exportBtn").addEventListener("click", exportTasks);
+    document.getElementById("search").addEventListener("input", render);
+    document.getElementById("filterStatus").addEventListener("change", render);
+    document.getElementById("filterPriority").addEventListener("change", render);
+
+    document.getElementById("rows").addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const id = Number(btn.getAttribute("data-id"));
+      const act = btn.getAttribute("data-act");
+      const task = items.find((x) => Number(x.id) === id);
+      if (!task) return;
+
+      if (act === "start") {
+        task.status = "In Progress";
+        task.lastActionDate = nowISODateOnly();
+      } else if (act === "complete") {
+        task.status = "Done";
+        task.lastActionDate = nowISODateOnly();
+      }
+      save();
+      queueAndAttemptSync("Task action updated");
+      render();
+    });
+
+    document.getElementById("rows").addEventListener("change", (e) => {
+      const sel = e.target.closest('select[data-act="status-change"]');
+      if (!sel) return;
+      const id = Number(sel.getAttribute("data-id"));
+      const task = items.find((x) => Number(x.id) === id);
+      if (!task) return;
+      const value = sel.value;
+      if (!STATUS_VALUES.includes(value)) return;
+      task.status = value;
+      task.lastActionDate = nowISODateOnly();
+      save();
+      queueAndAttemptSync("Task status updated");
+      render();
+    });
+
+    document.getElementById("connectMasterBtn").addEventListener("click", connectMasterFile);
+    save();
+    render();
+    renderSyncHint();
+    initMasterSync();
+  </script>
+</body>
+</html>

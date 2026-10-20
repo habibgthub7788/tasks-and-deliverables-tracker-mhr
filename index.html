@@ -376,6 +376,11 @@
       writePendingSync([]);
     }
 
+    function normalizeAllItems() {
+      items = items.map(sanitizeTask);
+      save();
+    }
+
     let items = JSON.parse(localStorage.getItem(KEY) || "null");
     if (!Array.isArray(items)) {
       items = [
@@ -442,6 +447,7 @@
     }
 
     function buildExcelHtml() {
+      normalizeAllItems();
       const headers = [
         "ID", "Type", "Created Date", "Due Date", "Priority",
         "Status", "Start or Completion Date", "Title", "Deliverable", "Remarks"
@@ -467,6 +473,7 @@
 
     let masterFileHandle = null;
     let syncInProgress = false;
+    let queuedSyncReason = "";
 
     function openHandleDB() {
       return new Promise((resolve, reject) => {
@@ -547,7 +554,10 @@
     }
 
     async function syncMasterTracker(reason) {
-      if (syncInProgress) return;
+      if (syncInProgress) {
+        queuedSyncReason = reason || queuedSyncReason || "Queued sync";
+        return;
+      }
       if (!masterFileHandle) {
         renderSyncHint();
         return;
@@ -571,6 +581,11 @@
       } finally {
         syncInProgress = false;
         renderSyncHint();
+        if (queuedSyncReason) {
+          const followUpReason = queuedSyncReason;
+          queuedSyncReason = "";
+          await syncMasterTracker(followUpReason);
+        }
       }
     }
 
@@ -595,9 +610,10 @@
         masterFileHandle = handles && handles[0] ? handles[0] : null;
         if (!masterFileHandle) return;
         await saveMasterHandle(masterFileHandle);
-        queueSyncEvent("Master file connected");
+        normalizeAllItems();
+        queueSyncEvent("Master file connected full refresh");
         renderSyncHint();
-        await syncMasterTracker("Master file connected");
+        await syncMasterTracker("Master file connected full refresh");
       } catch (err) {
         if (err && err.name === "AbortError") {
           renderSyncHint();

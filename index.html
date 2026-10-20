@@ -190,6 +190,10 @@
           </select>
         </div>
         <div>
+          <label for="site">Site</label>
+          <input id="site" placeholder="e.g., YTO, YQB01 or AVC, AVC09">
+        </div>
+        <div>
           <label for="type">Type</label>
           <select id="type">
             <option>Environment</option>
@@ -236,7 +240,7 @@
     <div class="panel" style="margin-top: 12px;">
       <div class="row">
         <div style="min-width: 220px; flex: 1;">
-          <label for="search">Search (task deliverables / type / remarks)</label>
+          <label for="search">Search (task deliverables / site / type / remarks)</label>
           <input id="search" placeholder="Search tasks...">
         </div>
         <div style="min-width: 180px;">
@@ -271,6 +275,7 @@
             <tr>
               <th>ID</th>
               <th>Country</th>
+              <th>Site</th>
               <th>Type</th>
               <th>Created Date</th>
               <th>Due Date</th>
@@ -339,6 +344,7 @@
       const task = Object.assign({}, raw || {});
       task.id = Number(task.id) || 0;
       task.country = COUNTRY_VALUES.includes(task.country) ? task.country : "Canada";
+      task.site = (task.site || "").trim();
       task.type = TYPE_VALUES.includes(task.type) ? task.type : "Other";
       task.createdDate = toISODateOnly(task.createdDate);
       task.status = STATUS_VALUES.includes(task.status) ? task.status : "New";
@@ -390,6 +396,7 @@
         {
           id: 1001,
           country: "Canada",
+          site: "",
           type: "AQS",
           createdDate: "2026-07-02",
           status: "New",
@@ -402,6 +409,7 @@
         {
           id: 1002,
           country: "Canada",
+          site: "",
           type: "Enablon and AQS",
           createdDate: "2026-10-12",
           status: "In Progress",
@@ -452,7 +460,7 @@
     function buildExcelHtml() {
       normalizeAllItems();
       const headers = [
-        "ID", "Country", "Type", "Created Date", "Due Date", "Priority",
+        "ID", "Country", "Site", "Type", "Created Date", "Due Date", "Priority",
         "Status", "Start or Completion Date", "Task deliverables", "Remarks"
       ];
       const headHtml = `<tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>`;
@@ -460,6 +468,7 @@
         <tr>
           <td>${esc(t.id)}</td>
           <td>${esc(t.country)}</td>
+          <td>${esc(t.site)}</td>
           <td>${esc(t.type)}</td>
           <td>${esc(fmtDateDDMMYYYY(t.createdDate))}</td>
           <td>${esc(fmtDateDDMMYYYY(t.dueDate))}</td>
@@ -654,7 +663,7 @@
       const filterPriority = document.getElementById("filterPriority").value;
 
       const filtered = items.filter((t) => {
-        const text = [t.title, t.type, t.remarks].join(" ").toLowerCase();
+        const text = [t.title, t.site, t.type, t.remarks].join(" ").toLowerCase();
         const matchesSearch = !search || text.includes(search);
         const matchesStatus = filterStatus === "all" || t.status === filterStatus;
         const matchesPriority = filterPriority === "all" || t.priority === filterPriority;
@@ -671,6 +680,7 @@
         <tr>
           <td class="mono">${esc(t.id)}</td>
           <td>${esc(t.country)}</td>
+          <td>${esc(t.site)}</td>
           <td>${esc(t.type)}</td>
           <td>${esc(fmtDateDDMMYYYY(t.createdDate))}</td>
           <td>${esc(fmtDateDDMMYYYY(t.dueDate))}</td>
@@ -696,6 +706,7 @@
     function clearInputs() {
       document.getElementById("title").value = "";
       document.getElementById("country").value = "Canada";
+      document.getElementById("site").value = "";
       document.getElementById("type").value = "AQS";
       document.getElementById("priority").value = "High";
       document.getElementById("dueDate").value = "";
@@ -705,6 +716,7 @@
     document.getElementById("addBtn").addEventListener("click", () => {
       const title = document.getElementById("title").value.trim();
       const country = document.getElementById("country").value;
+      const site = document.getElementById("site").value.trim();
       const type = document.getElementById("type").value;
       const priority = document.getElementById("priority").value;
       const dueDate = toISODateOnly(document.getElementById("dueDate").value);
@@ -714,6 +726,7 @@
       items.unshift(sanitizeTask({
         id: nextId(),
         country,
+        site,
         type,
         createdDate: nowISODateOnly(),
         status: "New",

@@ -255,11 +255,10 @@
       <div class="row" style="margin-top: 10px;">
         <button id="addBtn" class="btn-primary">Add Task</button>
         <button id="clearBtn">Clear Draft Inputs</button>
-        <button id="exportBtn">Export Tasks</button>
-        <button id="exportAllBtn">Export All Tasks (Archive)</button>
+        <button id="exportAllBtn">Export All Tasks</button>
         <button id="connectMasterBtn">Sync with Master Tracker</button>
       </div>
-      <div class="hint">Export outputs an Excel file with all task fields and history.</div>
+      <div class="hint">Export All Tasks outputs all task fields and history to a separate file.</div>
       <div class="hint">All task entries are retained for long-term reference. No automatic record deletion is performed.</div>
       <div id="syncHint" class="hint"></div>
     </div>
@@ -497,10 +496,6 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    }
-
-    function exportTasks() {
-      downloadExcelFile("tasks-and-deliverables-master-tracker-mhr.xls");
     }
 
     function exportAllTasksArchive() {
@@ -946,7 +941,6 @@
     });
 
     document.getElementById("clearBtn").addEventListener("click", clearInputs);
-    document.getElementById("exportBtn").addEventListener("click", exportTasks);
     document.getElementById("exportAllBtn").addEventListener("click", exportAllTasksArchive);
     document.getElementById("recurring").addEventListener("change", updateRecurringInputs);
     document.getElementById("search").addEventListener("input", render);

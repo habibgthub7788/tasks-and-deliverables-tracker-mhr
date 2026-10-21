@@ -361,6 +361,16 @@
       return toISODateOnly(new Date().toISOString());
     }
 
+    function fromDDMMYYYYToISO(v) {
+      const raw = String(v || "").trim();
+      const m = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+      if (!m) return "";
+      const day = m[1];
+      const month = m[2];
+      const year = m[3];
+      return `${year}-${month}-${day}`;
+    }
+
     function esc(s) {
       return String(s || "").replace(/[&<>"']/g, (ch) => ({
         "&": "&amp;",
@@ -672,6 +682,7 @@
         masterFileHandle = handles && handles[0] ? handles[0] : null;
         if (!masterFileHandle) return;
         await saveMasterHandle(masterFileHandle);
+        await importFromMasterIfAvailable();
         normalizeAllItems();
         queueSyncEvent("Manual full sync requested");
         renderSyncHint();
@@ -688,8 +699,9 @@
     }
 
     async function syncWithMasterTracker() {
-      normalizeAllItems();
       if (masterFileHandle) {
+        await importFromMasterIfAvailable();
+        normalizeAllItems();
         queueSyncEvent("Manual full sync requested");
         renderSyncHint();
         await syncMasterTracker("Manual full sync requested");
@@ -776,6 +788,92 @@
       }));
       save();
       queueAndAttemptSync(reason || "Recurring task auto-added");
+    }
+
+    function parseMasterTasksFromHtml(html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(String(html || ""), "text/html");
+      const table = doc.querySelector("table");
+      if (!table) return [];
+      const rows = Array.from(table.querySelectorAll("tr"));
+      if (rows.length < 2) return [];
+
+      const headers = Array.from(rows[0].querySelectorAll("th,td")).map((x) => x.textContent.trim());
+      const headerToIndex = new Map(headers.map((h, i) => [h, i]));
+      function col(name) {
+        const idx = headerToIndex.get(name);
+        return typeof idx === "number" ? idx : -1;
+      }
+      function getCell(cells, name) {
+        const idx = col(name);
+        if (idx < 0 || idx >= cells.length) return "";
+        return (cells[idx].textContent || "").trim();
+      }
+
+      const out = [];
+      for (let i = 1; i < rows.length; i += 1) {
+        const cells = Array.from(rows[i].querySelectorAll("td"));
+        if (!cells.length) continue;
+        const idText = getCell(cells, "ID");
+        const id = Number(idText);
+        if (!Number.isFinite(id) || id <= 0) continue;
+
+        const createdDate = toISODateOnly(getCell(cells, "Created Date")) || fromDDMMYYYYToISO(getCell(cells, "Created Date"));
+        const dueDate = toISODateOnly(getCell(cells, "Due Date")) || fromDDMMYYYYToISO(getCell(cells, "Due Date"));
+        const lastActionDate = toISODateOnly(getCell(cells, "Start or Completion Date")) || fromDDMMYYYYToISO(getCell(cells, "Start or Completion Date"));
+        const recurringRaw = getCell(cells, "Recurring").toLowerCase();
+        const recurring = recurringRaw === "yes" || recurringRaw === "true" || recurringRaw === "1";
+        const frequency = getCell(cells, "Frequency");
+        let status = getCell(cells, "Status");
+        if (status === "Done") status = "Complete";
+
+        out.push(sanitizeTask({
+          id,
+          country: getCell(cells, "Country"),
+          site: getCell(cells, "Site"),
+          type: getCell(cells, "Type"),
+          createdDate,
+          dueDate,
+          priority: getCell(cells, "Priority"),
+          recurring,
+          frequency,
+          status,
+          lastActionDate,
+          title: getCell(cells, "Task deliverables"),
+          remarks: getCell(cells, "Remarks"),
+          recurrenceParentId: null
+        }));
+      }
+      return out;
+    }
+
+    function mergeMasterTasks(masterTasks) {
+      if (!Array.isArray(masterTasks) || masterTasks.length === 0) return;
+      const byId = new Map();
+      for (const t of items.map(sanitizeTask)) {
+        byId.set(Number(t.id), t);
+      }
+      for (const m of masterTasks.map(sanitizeTask)) {
+        const id = Number(m.id);
+        if (!byId.has(id)) {
+          byId.set(id, m);
+        }
+      }
+      items = Array.from(byId.values()).sort((a, b) => Number(b.id) - Number(a.id));
+      save();
+    }
+
+    async function importFromMasterIfAvailable() {
+      if (!masterFileHandle) return;
+      try {
+        const file = await masterFileHandle.getFile();
+        const text = await file.text();
+        const masterTasks = parseMasterTasksFromHtml(text);
+        mergeMasterTasks(masterTasks);
+      } catch (err) {
+        const message = err && err.message ? err.message : String(err);
+        setSyncMetaPatch({ lastError: message });
+      }
     }
 
     function compareByType(a, b, type, key) {

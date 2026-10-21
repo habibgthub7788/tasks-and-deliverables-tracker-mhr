@@ -531,7 +531,7 @@
           <td>${esc(fmtDateDDMMYYYY(t.dueDate))}</td>
           <td>${esc(t.priority)}</td>
           <td>${esc(t.recurring ? "Yes" : "No")}</td>
-          <td>${esc(t.recurring ? t.frequency : "")}</td>
+          <td>${esc(t.recurring ? t.frequency : "NA")}</td>
           <td>${esc(t.status)}</td>
           <td>${esc(fmtDateDDMMYYYY(t.lastActionDate))}</td>
           <td>${esc(t.title)}</td>
@@ -975,7 +975,7 @@
           <td>${esc(fmtDateDDMMYYYY(t.dueDate))}</td>
           <td>${esc(t.priority)}</td>
           <td>${esc(t.recurring ? "Yes" : "No")}</td>
-          <td>${esc(t.recurring ? t.frequency : "")}</td>
+          <td>${esc(t.recurring ? t.frequency : "NA")}</td>
           <td>
             <select class="status-select status ${statusClass(t.status)}" data-act="status-change" data-id="${esc(t.id)}">
               ${STATUS_VALUES.map((s) => `<option value="${esc(s)}" ${s === t.status ? "selected" : ""}>${esc(s)}</option>`).join("")}

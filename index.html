@@ -804,8 +804,9 @@
         const idx = headerToIndex.get(name);
         return typeof idx === "number" ? idx : -1;
       }
-      function getCell(cells, name) {
-        const idx = col(name);
+      function getCell(cells, name, fallbackName) {
+        let idx = col(name);
+        if (idx < 0 && fallbackName) idx = col(fallbackName);
         if (idx < 0 || idx >= cells.length) return "";
         return (cells[idx].textContent || "").trim();
       }
@@ -839,7 +840,7 @@
           frequency,
           status,
           lastActionDate,
-          title: getCell(cells, "Task deliverables"),
+          title: getCell(cells, "Task deliverables", "Title"),
           remarks: getCell(cells, "Remarks"),
           recurrenceParentId: null
         }));
@@ -931,6 +932,10 @@
       } catch (err) {
         const message = err && err.message ? err.message : String(err);
         setSyncMetaPatch({ lastError: message });
+      }
+      if (masterFileHandle) {
+        await importFromMasterIfAvailable();
+        render();
       }
       renderSyncHint();
       const hasPending = readPendingSync().length > 0;

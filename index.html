@@ -154,6 +154,8 @@
     .status.new { color: var(--cp-text-muted); }
     .mono { font-family: Consolas, "Courier New", Courier, monospace; font-size: 0.82rem; }
     .actions { display: flex; gap: 6px; }
+    .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .row-selected td { background: var(--cp-accent-soft); }
     .full { width: 100%; overflow: auto; }
     .status-select {
       min-width: 130px;
@@ -315,6 +317,7 @@
     const MASTER_HANDLE_STORE = "handles";
     const MASTER_HANDLE_KEY = "masterTrackerFileHandle";
     const COLUMN_DEFS = [
+      { label: "Select", key: null },
       { label: "ID", key: "id", type: "number" },
       { label: "Country", key: "country", type: "text" },
       { label: "Site", key: "site", type: "text" },
@@ -546,6 +549,8 @@
     let syncInProgress = false;
     let queuedSyncReason = "";
     let sortState = { key: null, direction: "asc" };
+    let selectedTaskId = null;
+    let editingTaskId = null;
 
     function openHandleDB() {
       return new Promise((resolve, reject) => {
@@ -896,6 +901,15 @@
       return av.localeCompare(bv);
     }
 
+    function renderOptionList(values, selectedValue) {
+      return values.map((value) => `<option value="${esc(value)}" ${value === selectedValue ? "selected" : ""}>${esc(value)}</option>`).join("");
+    }
+
+    function getRowEditFieldValue(id, field, fallback) {
+      const el = document.querySelector(`[data-edit-field="${field}"][data-id="${id}"]`);
+      return el ? el.value : fallback;
+    }
+
     function sortItems(records) {
       if (!sortState.key) return records;
       const column = COLUMN_DEFS.find((x) => x.key === sortState.key);
@@ -966,28 +980,32 @@
 
       const body = document.getElementById("rows");
       body.innerHTML = sorted.map((t) => `
-        <tr>
+        <tr class="${Number(selectedTaskId) === Number(t.id) ? "row-selected" : ""}">
+          <td><input type="checkbox" data-act="select-task" data-id="${esc(t.id)}" ${Number(selectedTaskId) === Number(t.id) ? "checked" : ""}></td>
           <td class="mono">${esc(t.id)}</td>
-          <td>${esc(t.country)}</td>
-          <td>${esc(t.site)}</td>
-          <td>${esc(t.type)}</td>
+          <td>${Number(editingTaskId) === Number(t.id) ? `<select data-edit-field="country" data-id="${esc(t.id)}">${renderOptionList(COUNTRY_VALUES, t.country)}</select>` : esc(t.country)}</td>
+          <td>${Number(editingTaskId) === Number(t.id) ? `<input data-edit-field="site" data-id="${esc(t.id)}" value="${esc(t.site)}" placeholder="e.g., YTO, YQB01 or AVC, AVC09">` : esc(t.site)}</td>
+          <td>${Number(editingTaskId) === Number(t.id) ? `<select data-edit-field="type" data-id="${esc(t.id)}">${renderOptionList(TYPE_VALUES, t.type)}</select>` : esc(t.type)}</td>
           <td>${esc(fmtDateDDMMYYYY(t.createdDate))}</td>
-          <td>${esc(fmtDateDDMMYYYY(t.dueDate))}</td>
-          <td>${esc(t.priority)}</td>
-          <td>${esc(t.recurring ? "Yes" : "No")}</td>
-          <td>${esc(t.recurring ? t.frequency : "NA")}</td>
+          <td>${Number(editingTaskId) === Number(t.id) ? `<input type="date" data-edit-field="dueDate" data-id="${esc(t.id)}" value="${esc(toISODateOnly(t.dueDate))}">` : esc(fmtDateDDMMYYYY(t.dueDate))}</td>
+          <td>${Number(editingTaskId) === Number(t.id) ? `<select data-edit-field="priority" data-id="${esc(t.id)}"><option value="High" ${t.priority === "High" ? "selected" : ""}>High</option><option value="Low" ${t.priority === "Low" ? "selected" : ""}>Low</option></select>` : esc(t.priority)}</td>
+          <td>${Number(editingTaskId) === Number(t.id) ? `<select data-edit-field="recurring" data-id="${esc(t.id)}"><option value="Yes" ${t.recurring ? "selected" : ""}>Yes</option><option value="No" ${!t.recurring ? "selected" : ""}>No</option></select>` : esc(t.recurring ? "Yes" : "No")}</td>
+          <td>${Number(editingTaskId) === Number(t.id) ? `<select data-edit-field="frequency" data-id="${esc(t.id)}" ${t.recurring ? "" : "disabled"}>${renderOptionList(FREQUENCY_VALUES, t.frequency)}</select>` : esc(t.recurring ? t.frequency : "NA")}</td>
           <td>
             <select class="status-select status ${statusClass(t.status)}" data-act="status-change" data-id="${esc(t.id)}">
               ${STATUS_VALUES.map((s) => `<option value="${esc(s)}" ${s === t.status ? "selected" : ""}>${esc(s)}</option>`).join("")}
             </select>
           </td>
           <td>${esc(fmtDateDDMMYYYY(t.lastActionDate))}</td>
-          <td class="title-cell">${esc(t.title)}</td>
-          <td>${esc(t.remarks)}</td>
+          <td class="title-cell">${Number(editingTaskId) === Number(t.id) ? `<input data-edit-field="title" data-id="${esc(t.id)}" value="${esc(t.title)}">` : esc(t.title)}</td>
+          <td>${Number(editingTaskId) === Number(t.id) ? `<input data-edit-field="remarks" data-id="${esc(t.id)}" value="${esc(t.remarks)}">` : esc(t.remarks)}</td>
           <td>
             <div class="actions">
               <button data-act="start" data-id="${esc(t.id)}">Start</button>
               <button data-act="complete" data-id="${esc(t.id)}">Complete</button>
+              <button data-act="edit" data-id="${esc(t.id)}" ${Number(selectedTaskId) === Number(t.id) ? "" : "disabled"}>Edit</button>
+              <button data-act="save" data-id="${esc(t.id)}" ${Number(selectedTaskId) === Number(t.id) && Number(editingTaskId) === Number(t.id) ? "" : "disabled"}>Save</button>
+              <button data-act="delete" data-id="${esc(t.id)}" ${Number(selectedTaskId) === Number(t.id) ? "" : "disabled"}>Delete</button>
             </div>
           </td>
         </tr>
@@ -1070,6 +1088,43 @@
         task.status = "Complete";
         task.lastActionDate = nowISODateOnly();
         maybeCreateNextRecurringTask(task, "Recurring task next occurrence added");
+      } else if (act === "edit") {
+        if (Number(selectedTaskId) !== id) return;
+        editingTaskId = id;
+        render();
+        return;
+      } else if (act === "save") {
+        if (Number(selectedTaskId) !== id || Number(editingTaskId) !== id) return;
+        const recurringValue = getRowEditFieldValue(id, "recurring", task.recurring ? "Yes" : "No");
+        const updatedTask = sanitizeTask({
+          ...task,
+          country: getRowEditFieldValue(id, "country", task.country),
+          site: getRowEditFieldValue(id, "site", task.site),
+          type: getRowEditFieldValue(id, "type", task.type),
+          dueDate: getRowEditFieldValue(id, "dueDate", task.dueDate),
+          priority: getRowEditFieldValue(id, "priority", task.priority),
+          recurring: recurringValue === "Yes",
+          frequency: getRowEditFieldValue(id, "frequency", task.frequency),
+          title: getRowEditFieldValue(id, "title", task.title),
+          remarks: getRowEditFieldValue(id, "remarks", task.remarks)
+        });
+        if (!updatedTask.title) return;
+        Object.assign(task, updatedTask);
+        editingTaskId = null;
+        save();
+        queueAndAttemptSync("Task edited");
+        render();
+        return;
+      } else if (act === "delete") {
+        if (Number(selectedTaskId) !== id) return;
+        if (!window.confirm("Delete selected task?")) return;
+        items = items.filter((x) => Number(x.id) !== id);
+        if (Number(selectedTaskId) === id) selectedTaskId = null;
+        if (Number(editingTaskId) === id) editingTaskId = null;
+        save();
+        queueAndAttemptSync("Task deleted");
+        render();
+        return;
       }
       save();
       queueAndAttemptSync("Task action updated");
@@ -1077,6 +1132,30 @@
     });
 
     document.getElementById("rows").addEventListener("change", (e) => {
+      const selectTask = e.target.closest('input[data-act="select-task"]');
+      if (selectTask) {
+        const id = Number(selectTask.getAttribute("data-id"));
+        if (selectTask.checked) {
+          selectedTaskId = id;
+          if (Number(editingTaskId) !== id) editingTaskId = null;
+        } else if (Number(selectedTaskId) === id) {
+          selectedTaskId = null;
+          editingTaskId = null;
+        }
+        render();
+        return;
+      }
+      const recurringEdit = e.target.closest('select[data-edit-field="recurring"]');
+      if (recurringEdit) {
+        const id = Number(recurringEdit.getAttribute("data-id"));
+        const frequencySelect = document.querySelector(`select[data-edit-field="frequency"][data-id="${id}"]`);
+        if (frequencySelect) {
+          const recurringYes = recurringEdit.value === "Yes";
+          frequencySelect.disabled = !recurringYes;
+          if (!recurringYes) frequencySelect.value = "Monthly";
+        }
+        return;
+      }
       const sel = e.target.closest('select[data-act="status-change"]');
       if (!sel) return;
       const id = Number(sel.getAttribute("data-id"));

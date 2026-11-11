@@ -224,7 +224,7 @@
         </div>
         <div>
           <label for="dueDate">Due Date</label>
-          <input id="dueDate" type="date">
+          <input id="dueDate" type="date" required>
         </div>
         <div>
           <label for="priority">Priority</label>
@@ -278,6 +278,7 @@
             <option value="New">New</option>
             <option value="In Progress">In Progress</option>
             <option value="Complete">Complete</option>
+            <option value="Withdrawn-not worked on it">Withdrawn-not worked on it</option>
           </select>
         </div>
         <div style="min-width: 180px;">
@@ -333,7 +334,7 @@
       { label: "Remarks", key: "remarks", type: "text" },
       { label: "Actions", key: null }
     ];
-    const STATUS_VALUES = ["New", "In Progress", "Complete"];
+    const STATUS_VALUES = ["New", "In Progress", "Complete", "Withdrawn-not worked on it"];
     const COUNTRY_VALUES = ["Canada", "USA", "Global"];
     const FREQUENCY_VALUES = ["Weekly", "Monthly", "Annually"];
     const TYPE_VALUES = [
@@ -1033,9 +1034,15 @@
       const priority = document.getElementById("priority").value;
       const recurring = document.getElementById("recurring").value === "Yes";
       const frequency = document.getElementById("frequency").value;
-      const dueDate = toISODateOnly(document.getElementById("dueDate").value);
+      const dueDateInput = document.getElementById("dueDate");
+      const dueDate = toISODateOnly(dueDateInput.value);
       const remarks = document.getElementById("remarks").value.trim() || "NA";
       if (!title) return;
+      if (!dueDate) {
+        window.alert("Due Date is required.");
+        dueDateInput.focus();
+        return;
+      }
 
       const createdTask = sanitizeTask({
         id: nextId(),

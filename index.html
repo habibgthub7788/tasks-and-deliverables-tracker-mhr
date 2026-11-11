@@ -1171,7 +1171,13 @@
       const value = sel.value;
       if (!STATUS_VALUES.includes(value)) return;
       task.status = value;
-      task.lastActionDate = nowISODateOnly();
+      if (value === "Withdrawn-not worked on it") {
+        if (!toISODateOnly(task.lastActionDate)) {
+          task.lastActionDate = nowISODateOnly();
+        }
+      } else {
+        task.lastActionDate = nowISODateOnly();
+      }
       if (value === "Complete") {
         maybeCreateNextRecurringTask(task, "Recurring task next occurrence added");
       }

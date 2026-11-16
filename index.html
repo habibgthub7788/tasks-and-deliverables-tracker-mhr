@@ -157,6 +157,10 @@
     .actions { display: flex; gap: 6px; }
     .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
     .row-selected td { background: var(--cp-accent-soft); }
+    .row-overdue td {
+      background: rgba(220, 38, 38, 0.2);
+      color: #7f1d1d;
+    }
     .full { width: 100%; overflow: auto; }
     .status-select {
       min-width: 130px;
@@ -982,7 +986,10 @@
 
       const body = document.getElementById("rows");
       body.innerHTML = sorted.map((t) => `
-        <tr class="${Number(selectedTaskId) === Number(t.id) ? "row-selected" : ""}">
+        <tr class="${[
+          Number(selectedTaskId) === Number(t.id) ? "row-selected" : "",
+          isOverdue(t) ? "row-overdue" : ""
+        ].filter(Boolean).join(" ")}">
           <td><input type="checkbox" data-act="select-task" data-id="${esc(t.id)}" ${Number(selectedTaskId) === Number(t.id) ? "checked" : ""}></td>
           <td class="mono">${esc(t.id)}</td>
           <td>${Number(editingTaskId) === Number(t.id) ? `<select data-edit-field="country" data-id="${esc(t.id)}">${renderOptionList(COUNTRY_VALUES, t.country)}</select>` : esc(t.country)}</td>
